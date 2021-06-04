@@ -33,6 +33,8 @@ namespace TestApp
             this.InputX = new System.Windows.Forms.RichTextBox();
             this.InputY = new System.Windows.Forms.RichTextBox();
             this.TypeLine = new System.Windows.Forms.TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // Plot
@@ -47,7 +49,7 @@ namespace TestApp
             // 
             // InputX
             // 
-            this.InputX.Location = new System.Drawing.Point(12, 23);
+            this.InputX.Location = new System.Drawing.Point(12, 56);
             this.InputX.Name = "InputX";
             this.InputX.Size = new System.Drawing.Size(125, 120);
             this.InputX.TabIndex = 1;
@@ -55,7 +57,7 @@ namespace TestApp
             // 
             // InputY
             // 
-            this.InputY.Location = new System.Drawing.Point(212, 23);
+            this.InputY.Location = new System.Drawing.Point(209, 56);
             this.InputY.Name = "InputY";
             this.InputY.Size = new System.Drawing.Size(125, 120);
             this.InputY.TabIndex = 2;
@@ -69,11 +71,31 @@ namespace TestApp
             this.TypeLine.TabIndex = 3;
             this.TypeLine.Text = "-o";
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(12, 30);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(18, 20);
+            this.label1.TabIndex = 4;
+            this.label1.Text = "X";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(209, 25);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(17, 20);
+            this.label2.TabIndex = 5;
+            this.label2.Text = "Y";
+            // 
             // MarkType
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.TypeLine);
             this.Controls.Add(this.InputY);
             this.Controls.Add(this.InputX);
@@ -91,6 +113,8 @@ namespace TestApp
         private System.Windows.Forms.RichTextBox InputX;
         private System.Windows.Forms.RichTextBox InputY;
         private System.Windows.Forms.TextBox TypeLine;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
     }
 }
 
