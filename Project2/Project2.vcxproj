@@ -21,6 +21,9 @@
   <ItemGroup>
     <ClInclude Include="..\Wrapp\Wrappedplot.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{869FE550-6D76-4425-8700-E9AFC922A1CB}</ProjectGuid>
