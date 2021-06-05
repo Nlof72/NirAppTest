@@ -18,6 +18,29 @@ namespace ConsoleApp8
         string FileName;
         string FolderInApp;
 
+
+        //Словарь для типов данных
+        Dictionary<string, string> dictionary = new Dictionary<string, string>()
+            {
+                { "auto", "auto"},
+                { "double", "double"},
+                { "std::string", "std::string"},
+                {"std::vector","array" },
+                {"std::array","array" },
+                {"std::string_view", "System::String^"},
+            };
+
+        //Словарь того какой должна быть обёртка данного типа данных
+        Dictionary<string, string> Wrapper = new Dictionary<string, string>()
+            {
+                {"std::vector","({0}->Length);\n\t\t\t\tfor (int i = 0; i < {0}->Length; i++) { \n\t\t\t\t\t{1}[i] = {0}[i];\n\t\t\t\t}" },
+                {"std::string_view"," = (char*)(void*)Marshal::StringToHGlobalAnsi({0});" },
+                {"double"," = {0};" },
+                {"std::string"," = {0};" },
+                {"std::array"," = { " },
+            };
+
+
         public Generator( string NameSpaceName, string ClassName, string LibInclude, string path, string FileName, string FolderInApp)
         {
             //Желаемый НеймСпейс
@@ -40,51 +63,8 @@ namespace ConsoleApp8
             this.FolderInApp = FolderInApp + "\\";
         }
 
-        public void Run()
+        private List<string> FormatText(List<string> strs)
         {
-
-
-
-            //Выходной путь
-            string OutPutPath = @$"..\..\..\..\..\{FolderInApp}Wrapped{FileName}";
-            string[] directoria = Directory.GetFiles(path);
-            string[] files = new string[directoria.Length];
-
-
-
-            //Словарь для типов данных
-            Dictionary<string, string> dictionary = new Dictionary<string, string>()
-            {
-                { "auto", "auto"},
-                { "double", "double"},
-                { "std::string", "std::string"},
-                {"std::vector","array" },
-                {"std::array","array" },
-                {"std::string_view", "System::String^"},
-            };
-
-            //Словарь того какой должна быть обёртка данного типа данных
-            Dictionary<string, string> Wrapper = new Dictionary<string, string>()
-            {
-                {"std::vector","({0}->Length);\n\t\t\t\tfor (int i = 0; i < {0}->Length; i++) { \n\t\t\t\t\t{1}[i] = {0}[i];\n\t\t\t\t}" },
-                {"std::string_view"," = (char*)(void*)Marshal::StringToHGlobalAnsi({0});" },
-                {"double"," = {0};" },
-                {"std::string"," = {0};" },
-                {"std::array"," = { " },
-            };
-
-            //Reading last file(should be plot.h)
-            //StreamReader streamReader = new StreamReader(path + "\\" + files[^1]);
-            StreamReader streamReader = new StreamReader(path + "\\" + FileName);
-            string str = "";
-
-            List<string> strs = new List<string>();
-            //Чтение файла и избавление от пробелов
-            while (!streamReader.EndOfStream)
-            {
-                strs.Add(streamReader.ReadLine().Trim());
-            }
-            List<string> s = strs;
 
             //Чистка списка строк от не нужных или необрабатоваемых данных таких как #include тел функций и т.п.
             strs.RemoveAll(item => item == "");
@@ -93,19 +73,22 @@ namespace ConsoleApp8
             strs.RemoveAll(item => item[0] == "#".ToCharArray()[0]);
             strs.RemoveAll(item => item[0] == "}".ToCharArray()[0]);
             strs.RemoveAll(item => item[item.Length - 1] == ";".ToCharArray()[0]);
-            strs.RemoveAll(item => item.Substring(0,6) == "return");
+            strs.RemoveAll(item => item.Substring(0, 6) == "return");
             strs.RemoveAll(item => item.Substring(0, 8) == "template");
+
+
 
 
             //форматирование текста под удобный формат
             for (int i = 0; i < strs.Count; i++)
             {
-                if(strs[i][strs[i].Length - 1] == "{".ToCharArray()[0])
+                if (strs[i][strs[i].Length - 1] == "{".ToCharArray()[0])
                 {
                     strs[i] = strs[i].Substring(0, strs[i].Length - 2);
                 }
 
-                if (strs[i].Contains(")")) {
+                if (strs[i].Contains(")"))
+                {
                     strs[i] = strs[i].Replace(")", " )");
                 }
                 if (strs[i].Contains("("))
@@ -115,7 +98,7 @@ namespace ConsoleApp8
 
                 if (strs[i].Contains("<"))
                 {
-                    int pos = strs[i].IndexOf(">")+1;
+                    int pos = strs[i].IndexOf(">") + 1;
                     string a = strs[i][strs[i].IndexOf("<")..pos];
                     if (a.Contains(", "))
                     {
@@ -135,8 +118,8 @@ namespace ConsoleApp8
 
                     while (true)
                     {
-                       
-                        if (strs[i].IndexOf("=") <0 ) break;
+
+                        if (strs[i].IndexOf("=") < 0) break;
                         if (strs[i].IndexOf(",", strs[i].IndexOf("=")) < 0) break;
                         int StartPos = strs[i].IndexOf("=") - 1;
                         strs[i] = strs[i].Replace(strs[i][StartPos..strs[i].IndexOf(",", strs[i].IndexOf("="))], "");
@@ -157,24 +140,37 @@ namespace ConsoleApp8
                 {
                     strs[i] = strs[i].Substring(0, strs[i].IndexOf("{"));
                 }
-                
+
             }
 
+            return strs;
+        }
+
+        private string PrepareWrapper(List<string> strs)
+        {
+            string str = "";
             //Формирование Обёртки и вставка самой ссылки на исходную библиотеку
             str += LibInclude + "\n";
             str += "#include <msclr\\marshal.h>\n#include <cmath>\n\n";
             //Вставка в обёртку неоюходимого неймспейс и того как будут обращаться к обёртке. Также создание Mock для необрабатываемых типов данных
             str += "using namespace System;\nusing namespace System::Runtime::InteropServices;\nusing namespace msclr::interop;\nusing namespace";
-            if (strs[0].Substring(0, "namespace".Length) == "namespace") {
+            if (strs[0].Substring(0, "namespace".Length) == "namespace")
+            {
                 string tmp = strs[0].Split("namespace")[1];
-                str += tmp+";\n\n";
+                str += tmp + ";\n\n";
                 str += strs[0].Substring(0, "namespace".Length) +
                     $" {NameSpaceName}" + "{\n";
                 str += "\tpublic ref class Mock {};\n";
-                str += $" \tpublic ref class {ClassName}" + 
-                    "{\n" + "\tpublic:"; 
+                str += $" \tpublic ref class {ClassName}" +
+                    "{\n" + "\tpublic:";
             };
 
+            return str;
+        }
+
+        private string CreateWrapper(List<string> strs)
+        {
+            string str = "";
             string wrd;
             string stroka;
             int counter = 0;
@@ -187,15 +183,14 @@ namespace ConsoleApp8
             int SizeMas = 0;
             string OldFunk = "";
             List<string> param = new List<string>();
-
             //Обёртывание функций библиотеки
             foreach (string tmp in strs)
             {
                 stroka = "";
                 //Разбиение строки на слова и проход по ним
-                for (int i = 0; i< tmp.Split(" ").Length; i++)
+                for (int i = 0; i < tmp.Split(" ").Length; i++)
                 {
-                       
+
                     wrd = tmp.Split(" ")[i];
                     if (wrd == "") continue;
                     if (wrd == " ") continue;
@@ -203,7 +198,7 @@ namespace ConsoleApp8
                     if (wrd == "inline")
                     {
 
-                        stroka += "\n\t\t"+wrd+" ";
+                        stroka += "\n\t\t" + wrd + " ";
                         counter++;
                         continue;
                     }
@@ -227,7 +222,7 @@ namespace ConsoleApp8
 
                     }
                     //Типы данных агрументов функции
-                    if(counter == 3)
+                    if (counter == 3)
                     {
                         //Начало обработки типов c < > 
                         if (wrd.Contains("<"))
@@ -239,19 +234,19 @@ namespace ConsoleApp8
                             }
                             if (dictionary.ContainsKey(wrd.Substring(0, wrd.IndexOf("<"))))
                             {
-                                if(!wrd.Contains("std::string"))
-                                if (dictionary.ContainsKey(wrd.Substring(wrd.IndexOf("<")+1, wrd.IndexOf(">") - wrd.IndexOf("<")-1)))
-                                {
+                                if (!wrd.Contains("std::string"))
+                                    if (dictionary.ContainsKey(wrd.Substring(wrd.IndexOf("<") + 1, wrd.IndexOf(">") - wrd.IndexOf("<") - 1)))
+                                    {
 
-                                    stroka += dictionary[wrd.Substring(0, wrd.IndexOf("<"))] + "<";
-                                    stroka += dictionary[wrd.Substring(wrd.IndexOf("<") + 1, wrd.IndexOf(">") - wrd.IndexOf("<") - 1)];
-                                    stroka += ">^ ";
-                                    CPlusPlusData = wrd + " ";
-                                    WrapperData = Wrapper[wrd.Substring(0, wrd.IndexOf("<"))];
-                                    SizeMas = 0;
-                                    counter++;
-                                    continue;
-                                }
+                                        stroka += dictionary[wrd.Substring(0, wrd.IndexOf("<"))] + "<";
+                                        stroka += dictionary[wrd.Substring(wrd.IndexOf("<") + 1, wrd.IndexOf(">") - wrd.IndexOf("<") - 1)];
+                                        stroka += ">^ ";
+                                        CPlusPlusData = wrd + " ";
+                                        WrapperData = Wrapper[wrd.Substring(0, wrd.IndexOf("<"))];
+                                        SizeMas = 0;
+                                        counter++;
+                                        continue;
+                                    }
 
                                 if (wrd[0..wrd.IndexOf("<")] == "std::array")
                                 {
@@ -261,7 +256,7 @@ namespace ConsoleApp8
                                     stroka += dictionary[wrd[StartPos..wrd.IndexOf(",")]] + ">^";
 
                                     StartPos = wrd.IndexOf(",") + 1;
-                                    
+
                                     SizeMas = int.Parse(wrd[StartPos..wrd.IndexOf(">")]);
                                     CPlusPlusData = wrd + " ";
 
@@ -315,16 +310,17 @@ namespace ConsoleApp8
                         if (dictionary.ContainsKey(wrd))
                         {
                             stroka += dictionary[wrd] + " ";
-                            
+
                             if (Wrapper.ContainsKey(wrd))
                             {
                                 WrapperData = Wrapper[wrd];
                                 CPlusPlusData = wrd + " ";
                             }
-                            
+
                             counter++;
                             continue;
-                        }else
+                        }
+                        else
                         {
                             stroka += "Mock ";
 
@@ -344,7 +340,7 @@ namespace ConsoleApp8
                         if (CPlusPlusData == "Mock")
                         {
                             CanBeUsed = false;
-                           if( variable[0] == "&".ToCharArray()[0])
+                            if (variable[0] == "&".ToCharArray()[0])
                             {
                                 variable = variable[1..];
                                 stroka += variable + " ";
@@ -362,7 +358,7 @@ namespace ConsoleApp8
                         if (variable[0] == "&".ToCharArray()[0])
                         {
                             variable = wrd[1..];
-                            stroka += variable+" ";
+                            stroka += variable + " ";
 
                             if (wrd.Contains(","))
                             {
@@ -370,16 +366,16 @@ namespace ConsoleApp8
                             }
 
 
-                            CPlusPlusData += variable+"1";
-                            
+                            CPlusPlusData += variable + "1";
+
                             if (WrapperData.Contains("{1}"))
                             {
                                 if (variable.Contains(","))
                                 {
                                     variable = variable.Split(",")[0];
                                 }
-                                WrapperData = WrapperData.Replace("{0}",variable);
-                                WrapperData = WrapperData.Replace("{1}",variable+"1");
+                                WrapperData = WrapperData.Replace("{0}", variable);
+                                WrapperData = WrapperData.Replace("{1}", variable + "1");
                                 param.Add(variable + "1");
                             }
                             else
@@ -392,7 +388,7 @@ namespace ConsoleApp8
 
                                 if (CPlusPlusData.Contains("std::array"))
                                 {
-                                    for(int schet =0; schet< SizeMas; schet++)
+                                    for (int schet = 0; schet < SizeMas; schet++)
                                     {
                                         WrapperData += variable + $"[{schet}], ";
                                     }
@@ -407,8 +403,8 @@ namespace ConsoleApp8
                                 param.Add(variable + "1");
                             }
 
-                            WrappedCode += "\t\t\t"+CPlusPlusData + WrapperData + "\n";
-                            
+                            WrappedCode += "\t\t\t" + CPlusPlusData + WrapperData + "\n";
+
                             counter--;
                             continue;
                         }
@@ -424,7 +420,7 @@ namespace ConsoleApp8
                             CPlusPlusData += variable + "1";
                             if (WrapperData.Contains("{1}"))
                             {
- 
+
                                 WrapperData = WrapperData.Replace("{0}", variable);
                                 WrapperData = WrapperData.Replace("{1}", variable + "1");
                                 param.Add(variable + "1");
@@ -468,7 +464,7 @@ namespace ConsoleApp8
                     {
                         string t = str + stroka;
                         int StartPos = t.LastIndexOf("inline");
-                        int EndPos = t.IndexOf(")",StartPos) + 1;
+                        int EndPos = t.IndexOf(")", StartPos) + 1;
                         //Console.WriteLine(t[StartPos..]);
                         if (str.Contains(t[StartPos..EndPos]))
                         {
@@ -481,9 +477,40 @@ namespace ConsoleApp8
                 str += stroka;
             }
 
-            str += "\n\t};\n}";
-            File.WriteAllText(OutPutPath, str, Encoding.UTF8);
+            return str;
 
+        }
+
+        public void Run()
+        {
+
+            //Выходной путь
+            string OutPutPath = @$"..\..\..\..\..\{FolderInApp}Wrapped{FileName}";
+            string[] directoria = Directory.GetFiles(path);
+            string[] files = new string[directoria.Length];
+
+            //Reading last file(should be plot.h)
+            StreamReader streamReader = new StreamReader(path + "\\" + FileName);
+           
+
+            List<string> strs = new List<string>();
+            //Чтение файла и избавление от пробелов
+            while (!streamReader.EndOfStream)
+            {
+                strs.Add(streamReader.ReadLine().Trim());
+            }
+            List<string> s = strs;
+
+
+            strs = FormatText(strs);
+
+            string str = PrepareWrapper(strs);
+
+            str += CreateWrapper(strs);
+
+            str += "\n\t};\n}";
+
+            File.WriteAllText(OutPutPath, str, Encoding.UTF8);
         }
     }
 }

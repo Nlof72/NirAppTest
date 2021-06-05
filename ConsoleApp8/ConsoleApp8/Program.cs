@@ -16,13 +16,11 @@ namespace ConsoleApp8
             //То как библиотека подключется в файле
             string LibInclude = "#include <matplot/matplot.h>";
             //Путь для обёртываемого файла
-            //string path = @"D:\matplotplusplus 1.0.1\include\matplot\freestanding";
             string path = @"..\..\..\..\..\matplotplusplus 1.0.1\include\matplot\freestanding";
             //Название обёртываемого файла
             string FileName = "plot.h";
             string FolderInApp = "Wrapp";
             Generator gen = new Generator(NameSpaceName, ClassName, LibInclude, path, FileName, FolderInApp);
-
             gen.Run();
         }
     }
